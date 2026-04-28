@@ -35,12 +35,11 @@ class CameraStream:
             return False
 
         # MJPEG format — decode tezroq, kanalda ham MJPEG keladi
-        self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+        self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'YUYV'))
 
         # 1280x720 @ 15fps
-        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-        self.cap.set(cv2.CAP_PROP_FPS, 15)
+        self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
+        self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 640)
 
         # Kernel buffer minimalni 1 ga set qil
         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
@@ -55,6 +54,14 @@ class CameraStream:
         self.thread.start()
 
     def update(self):
+        ret = False
+        frame = None
+
+        # 🔥 buffer flush
+        for _ in range(2):
+            self.cap.grab()
+
+        ret, frame = self.cap.read()
         TARGET_INTERVAL = 1.0 / 15  # 15 fps => 66.6ms
 
         while self.running:
