@@ -32,7 +32,6 @@ class CameraStream:
             print(f"[ERROR] {self.name} ochilmadi: {self.device}")
             return False
 
-        # YUYV format va FFmpeg bilan bir xil razmer
         self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'YUYV'))
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 640)
@@ -49,7 +48,6 @@ class CameraStream:
 
     def update(self):
         while self.running:
-            # Agar uzilib qolsa qayta ulanish
             if self.cap is None or not self.cap.isOpened():
                 ok = self.open()
                 if not ok:
@@ -59,10 +57,9 @@ class CameraStream:
             ret, frame = self.cap.read()
 
             if not ret:
-                time.sleep(0.1)  # Kadr bo'lmasa, CPU ni qizitmaslik uchun kutamiz
+                time.sleep(0.1)
                 continue
 
-            # FPS hisoblash
             now = time.time()
             if self.last_frame_time is not None:
                 dt = now - self.last_frame_time
@@ -71,13 +68,9 @@ class CameraStream:
                     self.fps = (self.fps * 0.85) + (instant_fps * 0.15)
             self.last_frame_time = now
 
-            # Eng yangi frame ni saqlash
             with self.lock:
                 self.frame = frame
 
-            # ==========================================================
-            # SEHRLI QATOR: Protsessorni FFmpeg uchun bo'shatib beramiz!
-            # ==========================================================
             time.sleep(0.01)
 
     def read_latest(self):
@@ -96,7 +89,6 @@ class CameraStream:
             except Exception:
                 pass
 
-# ── Streamlarni boshlash ──────────────────────────────────────────────────────
 out_cam = CameraStream(OUT_DEVICE, "OUT")
 in_cam  = CameraStream(IN_DEVICE,  "IN")
 
