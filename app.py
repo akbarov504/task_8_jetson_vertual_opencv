@@ -2,10 +2,8 @@ import cv2
 import time
 import threading
 
-
 OUT_DEVICE = "/dev/video40"
 IN_DEVICE  = "/dev/video41"
-
 
 class CameraStream:
     def __init__(self, device, name):
@@ -34,14 +32,10 @@ class CameraStream:
             print(f"[ERROR] {self.name} ochilmadi: {self.device}")
             return False
 
-        # MJPEG format — decode tezroq, kanalda ham MJPEG keladi
+        # YUYV format va FFmpeg bilan bir xil razmer
         self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'YUYV'))
-
-        # 1280x720 @ 15fps
         self.cap.set(cv2.CAP_PROP_FRAME_WIDTH, 640)
         self.cap.set(cv2.CAP_PROP_FRAME_HEIGHT, 640)
-
-        # Kernel buffer minimalni 1 ga set qil
         self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 1)
 
         self.opened_once = True
@@ -54,31 +48,21 @@ class CameraStream:
         self.thread.start()
 
     def update(self):
-        ret = False
-        frame = None
-
-        # 🔥 buffer flush
-        for _ in range(2):
-            self.cap.grab()
-
-        ret, frame = self.cap.read()
-        TARGET_INTERVAL = 1.0 / 15  # 15 fps => 66.6ms
-
         while self.running:
-            # --- Device yo'q yoki yopiq bo'lsa qayta ochish ---
+            # Agar uzilib qolsa qayta ulanish
             if self.cap is None or not self.cap.isOpened():
                 ok = self.open()
                 if not ok:
                     time.sleep(0.5)
                     continue
 
-            loop_start = time.time()
-
-            # --- Faqat bir marta o'qiymiz (2x read delay qo'shadi) ---
+            # ========================================================
+            # MUHIM O'ZGARISH: SLEEP OLIB TASHLA, TINIMSIZ O'QIYMIZ
+            # ========================================================
             ret, frame = self.cap.read()
 
             if not ret:
-                print(f"[WARN] {self.name} reconnect...")
+                print(f"[WARN] {self.name} reconnect kutilmoqda...")
                 try:
                     self.cap.release()
                 except Exception:
@@ -87,7 +71,7 @@ class CameraStream:
                 time.sleep(0.3)
                 continue
 
-            # --- FPS hisoblash (exponential moving average) ---
+            # FPS hisoblash
             now = time.time()
             if self.last_frame_time is not None:
                 dt = now - self.last_frame_time
@@ -96,15 +80,9 @@ class CameraStream:
                     self.fps = (self.fps * 0.85) + (instant_fps * 0.15)
             self.last_frame_time = now
 
-            # --- Eng yangi frame ni saqlash ---
+            # Eng yangi frame ni xavfsiz saqlash
             with self.lock:
                 self.frame = frame
-
-            # --- Buffer to'planmasligi uchun qolgan vaqtni uxlash ---
-            elapsed    = time.time() - loop_start
-            sleep_time = TARGET_INTERVAL - elapsed
-            if sleep_time > 0.002:
-                time.sleep(sleep_time)
 
     def read_latest(self):
         with self.lock:
@@ -114,26 +92,22 @@ class CameraStream:
 
     def stop(self):
         self.running = False
-
         if self.thread is not None:
             self.thread.join(timeout=1)
-
         if self.cap is not None:
             try:
                 self.cap.release()
             except Exception:
                 pass
 
-
 # ── Streamlarni boshlash ──────────────────────────────────────────────────────
-
 out_cam = CameraStream(OUT_DEVICE, "OUT")
 in_cam  = CameraStream(IN_DEVICE,  "IN")
 
 out_cam.start()
 in_cam.start()
 
-print("[INFO] OUT va IN realtime mode ishlayapti (1280x720 @ 15fps).")
+print("[INFO] OUT va IN realtime mode ishlayapti. Kechikish nolga tushirildi!")
 print("[INFO] Chiqish uchun 'q' bosing.")
 
 try:
