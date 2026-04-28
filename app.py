@@ -56,19 +56,10 @@ class CameraStream:
                     time.sleep(0.5)
                     continue
 
-            # ========================================================
-            # MUHIM O'ZGARISH: SLEEP OLIB TASHLA, TINIMSIZ O'QIYMIZ
-            # ========================================================
             ret, frame = self.cap.read()
 
             if not ret:
-                print(f"[WARN] {self.name} reconnect kutilmoqda...")
-                try:
-                    self.cap.release()
-                except Exception:
-                    pass
-                self.cap = None
-                time.sleep(0.3)
+                time.sleep(0.1)  # Kadr bo'lmasa, CPU ni qizitmaslik uchun kutamiz
                 continue
 
             # FPS hisoblash
@@ -80,9 +71,14 @@ class CameraStream:
                     self.fps = (self.fps * 0.85) + (instant_fps * 0.15)
             self.last_frame_time = now
 
-            # Eng yangi frame ni xavfsiz saqlash
+            # Eng yangi frame ni saqlash
             with self.lock:
                 self.frame = frame
+
+            # ==========================================================
+            # SEHRLI QATOR: Protsessorni FFmpeg uchun bo'shatib beramiz!
+            # ==========================================================
+            time.sleep(0.01)
 
     def read_latest(self):
         with self.lock:
